@@ -6,3 +6,5 @@ edition = "2024"
 [dependencies]
 rocket = "0.5"
 aerospace-rocketry-lib = { git = "https://github.com/unl-rocketry/aerospace-rocketry-lib.git" }
+serialport = "4.8.1"
+thiserror = "2.0.18"

@@ -2,10 +2,7 @@ use rocket::{
     get, routes
 };
 
-#[get("/")]
-fn index() -> &'static str {
-    "The server is running!"
-}
+pub mod rotator;
 
 #[rocket::main]
 async fn main() {
@@ -25,4 +22,9 @@ async fn main() {
         .await;
 
     rocket.expect("Server failed to shutdown gracefully");
+}
+
+#[get("/")]
+fn index() -> &'static str {
+    "The server is running!"
 }
