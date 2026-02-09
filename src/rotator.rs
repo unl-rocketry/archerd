@@ -64,7 +64,7 @@ pub enum Direction {
     // Horizontal
     Left,
     Right,
-    StopHoriztonal,
+    StopHorizontal,
 }
 
 impl Display for Direction {
@@ -76,7 +76,7 @@ impl Display for Direction {
             Self::StopVertical => "SV",
             Self::Left => "LT",
             Self::Right => "RT",
-            Self::StopHoriztonal => "SH",
+            Self::StopHorizontal => "SH",
         };
 
         write!(f, "{cmd_text}")
