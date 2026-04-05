@@ -14,13 +14,14 @@ async fn main() {
         ..Default::default()
     };
 
-    let serial = serialport::new("/dev/ttyUSB0", 115_200)
+    let serial = serialport::new("/dev/ttyACM0", 115_200)
         .open()
         .unwrap();
-    let rotator = Rotator::new(serial);
+    let rotator = Rotator::new(serial).unwrap();
     let rotator = Mutex::new(rotator);
 
     let rocket = rocket::build()
+        .manage(rotator)
         .mount(
             "/",
             routes![
@@ -39,7 +40,6 @@ async fn main() {
             ],
         )
         .configure(rocket_config)
-        .manage(rotator)
         .launch()
         .await;
 
