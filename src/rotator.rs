@@ -133,6 +133,8 @@ impl Rotator {
 
     /// Send a command followed by arguments. Returns either an error if sending failed, or the
     pub fn send_command(&mut self, command: Command, args: &[&str]) -> Result<String, std::io::Error> {
+        self.port.clear(serialport::ClearBuffer::All)?;
+
         let mut command_string = BufWriter::new(Vec::new());
 
         self.port.write_all(command.to_string().as_bytes())?;
