@@ -1,7 +1,7 @@
 use std::{io::Error, num::ParseFloatError, ops::Neg, str::ParseBoolError};
 
 use rocket::{
-    State, futures::lock::Mutex, get, routes, serde::json::Value
+    State, get, routes, serde::json::Value, tokio::sync::Mutex
 };
 
 use crate::rotator::{Command, Direction, Rotator};
@@ -14,9 +14,7 @@ async fn main() {
         ..Default::default()
     };
 
-    let serial = serialport::new("/dev/ttyACM0", 115_200)
-        .open()
-        .unwrap();
+    let serial = serialport::new("/dev/null", 115_200).open().unwrap();
     let rotator = Rotator::new(serial).unwrap();
     let rotator = Mutex::new(rotator);
 
