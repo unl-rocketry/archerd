@@ -23,7 +23,7 @@ async fn main() {
         .map(|v| v[0].clone()).unwrap();
     let protocol_version = env!("PROTOCOL_VERSION");
     if !(protocol_version == protocol_version) {
-        Error::other(format!("Protocol Version Mismatch please use a version of this program compatible with protocol Version {version}"));
+        log::warn!("Protocol Version Mismatch please use a version of this program compatible with protocol Version {version}")
     }
 
     let rotator = Mutex::new(rotator);

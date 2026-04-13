@@ -11,6 +11,7 @@ rocket = { version = "0.5", features = ["json"] }
 aerospace-rocketry-lib = { git = "https://github.com/unl-rocketry/aerospace-rocketry-lib.git" }
 serialport = "4.8.1"
 thiserror = "2.0.18"
+log = "0.4.29"
 
 [build-dependencies]
 cargo_metadata = "0.23.1"
