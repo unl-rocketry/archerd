@@ -14,8 +14,18 @@ async fn main() {
         ..Default::default()
     };
 
-    let serial = serialport::new("/dev/null", 115_200).open().unwrap();
-    let rotator = Rotator::new(serial).unwrap();
+    let serial = serialport::new("/dev/ttyUSB0", 115_200).open().unwrap();
+    let mut rotator = Rotator::new(serial).unwrap();
+
+    let cmd_string = rotator.send_command(Command::GetVersion, &[]).unwrap();
+    let version = rotator.validate_parse(&cmd_string).unwrap()
+        .ok_or(Error::other("ExpectedValue"))
+        .map(|v| v[0].clone()).unwrap();
+    let protocol_version = env!("PROTOCOL_VERSION");
+    if !(protocol_version == protocol_version) {
+        Error::other(format!("Protocol Version Mismatch please use a version of this program compatible with protocol Version {version}"));
+    }
+
     let rotator = Mutex::new(rotator);
 
     let rocket = rocket::build()
