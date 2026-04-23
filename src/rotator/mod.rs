@@ -1,10 +1,6 @@
-#![warn(
-    clippy::pedantic,
-    clippy::nursery,
-    clippy::cargo,
-)]
+pub mod endpoints;
 
-use std::io::{BufWriter, Error, Write as _};
+use std::io::{Error, Write as _};
 use core::fmt::Display;
 use rocket::FromFormField;
 
@@ -135,7 +131,7 @@ impl Rotator {
     pub fn send_command(&mut self, command: Command, args: &[&str]) -> Result<String, std::io::Error> {
         self.port.clear(serialport::ClearBuffer::All)?;
 
-        let mut command_string = BufWriter::new(Vec::new());
+        let mut command_string = Vec::new();
 
         self.port.write_all(command.to_string().as_bytes())?;
         command_string.write_all(command.to_string().as_bytes())?;
@@ -151,7 +147,7 @@ impl Rotator {
         self.port.write_all(b"\n")?;
         command_string.write_all(b"\n")?;
 
-        let command_string = String::from_utf8(command_string.into_inner().unwrap()).unwrap();
+        let command_string = String::from_utf8_lossy(&command_string).to_string();
 
         Ok(command_string)
     }

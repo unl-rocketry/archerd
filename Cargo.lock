@@ -29,8 +29,9 @@ dependencies = [
  "cargo_metadata",
  "log",
  "rocket",
+ "serde",
+ "serde_json",
  "serialport",
- "thiserror",
 ]
 
 [[package]]
