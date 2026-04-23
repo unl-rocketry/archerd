@@ -2,7 +2,7 @@ use rocket::{
     get, routes, tokio::sync::Mutex
 };
 
-use crate::rotator::{Rotator, endpoints};
+use crate::rotator::{Rotator, dummyport::DummyPort, endpoints};
 
 pub mod rotator;
 
@@ -13,6 +13,7 @@ async fn main() {
     };
 
     let serial = serialport::new("/dev/ttyUSB0", 115_200).open().unwrap();
+    // let serial = Box::new(DummyPort::default());
     let rotator = Mutex::new(Rotator::new(serial).unwrap());
 
     let rocket = rocket::build()

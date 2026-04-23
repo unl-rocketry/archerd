@@ -1,4 +1,5 @@
 pub mod endpoints;
+pub mod dummyport;
 
 use std::io::{Error, Write as _};
 use core::fmt::Display;
@@ -178,7 +179,7 @@ impl Rotator {
         let response_lines: Vec<_> = response_string.split_terminator('\n').collect();
 
         // The first line should be an echo of what was sent
-        if response_lines[0] != command_string.trim() {
+        if *response_lines.first().ok_or_else(|| Error::other("response empty"))? != command_string.trim() {
             return Err(Error::other("invalid response"))
         }
 
