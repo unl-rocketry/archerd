@@ -1,3 +1,8 @@
+//! Components for interacting with the rotator for tracking purposes.
+//!
+//! A connection to the rotator should be made using an automatic selection algorithm,
+//! or by using the web API to connect.
+
 pub mod endpoints;
 pub mod dummyport;
 
@@ -104,7 +109,7 @@ pub struct Rotator {
 
 #[allow(clippy::missing_errors_doc)]
 impl Rotator {
-    const BAUD: u32 = 115_200;
+    pub const BAUD: u32 = 115_200;
 
     /// Create a new rotator based on a serial port.
     ///

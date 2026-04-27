@@ -1,48 +1,28 @@
+//! Rocket endpoints for managing the rotator remotely.
+
 use std::{io, num::ParseFloatError, ops::Neg as _, str::ParseBoolError};
 
-use rocket::{State, get, response::Responder, serde::json::Value, tokio::sync::Mutex};
-use serde::Serialize;
+use rocket::{Route, State, get, routes, tokio::sync::Mutex};
 use serde_json::json;
+
+use crate::response::{Error, Success};
 
 use super::{Command, Rotator};
 
-#[derive(Serialize)]
-struct InnerResponse {
-    message: String,
-    data: Option<Value>,
-}
-
-#[derive(Responder)]
-#[response(status = 200, content_type = "json")]
-pub struct Success(String);
-
-#[derive(Responder)]
-#[response(status = 500, content_type = "json")]
-pub struct Error(String);
-
-impl Success {
-    fn empty() -> Self {
-        Self(serde_json::ser::to_string(&InnerResponse {
-            message: "success".to_string(),
-            data: None,
-        }).unwrap())
-    }
-
-    fn data(data: Value) -> Self {
-        Self(serde_json::ser::to_string(&InnerResponse {
-            message: "success".to_string(),
-            data: Some(data),
-        }).unwrap())
-    }
-}
-
-impl From<io::Error> for Error {
-    fn from(value: io::Error) -> Self {
-        Self(serde_json::ser::to_string(&InnerResponse {
-            message: value.to_string(),
-            data: None,
-        }).unwrap())
-    }
+pub fn endpoints() -> Vec<Route> {
+    routes![
+        set_position_vertical,
+        set_position_horizontal,
+        calibrate_vertical,
+        calibrate_horizontal,
+        move_direction,
+        move_vertical_steps,
+        move_horizontal_steps,
+        position,
+        calibrated,
+        halt,
+        version,
+    ]
 }
 
 type StatePort = State<Mutex<Rotator>>;

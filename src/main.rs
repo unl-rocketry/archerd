@@ -1,10 +1,14 @@
-use rocket::{
-    get, routes, tokio::sync::Mutex
-};
+use std::io;
 
-use crate::rotator::{Rotator, dummyport::DummyPort, endpoints};
+use rocket::{
+    State, get, routes, tokio::sync::Mutex
+};
+use serde_json::json;
+
+use crate::{response::{Error, Success}, rotator::{Rotator, dummyport::DummyPort}};
 
 pub mod rotator;
+pub mod response;
 
 #[rocket::main]
 async fn main() {
@@ -12,8 +16,7 @@ async fn main() {
         ..Default::default()
     };
 
-    let serial = serialport::new("/dev/ttyUSB0", 115_200).open().unwrap();
-    // let serial = Box::new(DummyPort::default());
+    let serial = serialport::new("/dev/ttyUSB0", 115_200).open().unwrap_or(Box::new(DummyPort::default()));
     let rotator = Mutex::new(Rotator::new(serial).unwrap());
 
     let rocket = rocket::build()
@@ -22,19 +25,11 @@ async fn main() {
             "/",
             routes![
                 index,
-                endpoints::set_position_vertical,
-                endpoints::set_position_horizontal,
-                endpoints::calibrate_vertical,
-                endpoints::calibrate_horizontal,
-                endpoints::move_direction,
-                endpoints::move_vertical_steps,
-                endpoints::move_horizontal_steps,
-                endpoints::position,
-                endpoints::calibrated,
-                endpoints::halt,
-                endpoints::version,
-            ],
+                get_serialports,
+                set_rotator_port,
+            ]
         )
+        .mount("/rotator", rotator::endpoints::endpoints())
         .configure(rocket_config)
         .launch()
         .await;
@@ -45,4 +40,32 @@ async fn main() {
 #[get("/")]
 fn index() -> &'static str {
     "The server is running!"
+}
+
+#[get("/get_serial_ports")]
+async fn get_serialports() -> Result<Success, Error> {
+    let ports: Vec<_> = serialport::available_ports()
+        .map_err(|e| io::Error::other(e.to_string()))?
+        .iter()
+        .cloned()
+        .map(|sp| sp.port_name)
+        .collect();
+
+    Ok(Success::data(json!({
+        "ports": ports,
+    })))
+}
+
+#[get("/set_rotator_port?<port>")]
+async fn set_rotator_port(rotator_state: &State<Mutex<Rotator>>, port: Option<String>) -> Result<Success, Error> {
+    let rotator_port = match port {
+        Some(p) => serialport::new(p, Rotator::BAUD),
+        None => todo!(),
+    }.open().map_err(|e| io::Error::other(e.to_string()))?;
+
+    let rotator = Rotator::new(rotator_port)?;
+
+    *rotator_state.lock().await = rotator;
+
+    Ok(Success::empty())
 }
