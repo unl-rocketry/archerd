@@ -20,25 +20,34 @@ pub struct Error(pub String);
 
 impl Success {
     pub fn empty() -> Self {
-        Self(serde_json::ser::to_string(&InnerResponse {
-            message: "success".to_string(),
-                                        data: None,
-        }).unwrap())
+        Self(
+            serde_json::ser::to_string(&InnerResponse {
+                message: "success".to_string(),
+                data: None,
+            })
+            .unwrap(),
+        )
     }
 
     pub fn data(data: Value) -> Self {
-        Self(serde_json::ser::to_string(&InnerResponse {
-            message: "success".to_string(),
-                                        data: Some(data),
-        }).unwrap())
+        Self(
+            serde_json::ser::to_string(&InnerResponse {
+                message: "success".to_string(),
+                data: Some(data),
+            })
+            .unwrap(),
+        )
     }
 }
 
 impl From<io::Error> for Error {
     fn from(value: io::Error) -> Self {
-        Self(serde_json::ser::to_string(&InnerResponse {
-            message: value.to_string(),
-                                        data: None,
-        }).unwrap())
+        Self(
+            serde_json::ser::to_string(&InnerResponse {
+                message: value.to_string(),
+                data: None,
+            })
+            .unwrap(),
+        )
     }
 }

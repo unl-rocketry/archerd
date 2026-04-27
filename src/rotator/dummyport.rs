@@ -1,4 +1,7 @@
-use std::{io::{Read, Write}, time::Duration};
+use std::{
+    io::{Read, Write},
+    time::Duration,
+};
 
 use serialport::{DataBits, FlowControl, Parity, SerialPort, StopBits};
 
@@ -20,7 +23,7 @@ impl Default for DummyPort {
             flow_control: FlowControl::None,
             parity: Parity::None,
             stop_bits: StopBits::One,
-            timeout: Duration::from_secs(1)
+            timeout: Duration::from_secs(1),
         }
     }
 }
@@ -80,7 +83,10 @@ impl SerialPort for DummyPort {
         Ok(())
     }
 
-    fn set_flow_control(&mut self, flow_control: serialport::FlowControl) -> serialport::Result<()> {
+    fn set_flow_control(
+        &mut self,
+        flow_control: serialport::FlowControl,
+    ) -> serialport::Result<()> {
         self.flow_control = flow_control;
         Ok(())
     }

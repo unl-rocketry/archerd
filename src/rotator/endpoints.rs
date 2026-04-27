@@ -32,7 +32,8 @@ type StatePort = State<Mutex<Rotator>>;
 pub async fn set_position_vertical(serial: &StatePort, degrees: f32) -> Result<Success, Error> {
     let mut rotator = serial.lock().await;
 
-    let cmd_string = rotator.send_command(Command::DegreesVertical, &[&format!("{degrees:0.3}")])?;
+    let cmd_string =
+        rotator.send_command(Command::DegreesVertical, &[&format!("{degrees:0.3}")])?;
     rotator.validate_parse(&cmd_string)?;
     drop(rotator);
 
@@ -44,7 +45,10 @@ pub async fn set_position_vertical(serial: &StatePort, degrees: f32) -> Result<S
 pub async fn set_position_horizontal(serial: &StatePort, degrees: f32) -> Result<Success, Error> {
     let mut rotator = serial.lock().await;
 
-    let cmd_string = rotator.send_command(Command::DegreesHorizontal, &[&format!("{:0.3}", degrees.neg())])?;
+    let cmd_string = rotator.send_command(
+        Command::DegreesHorizontal,
+        &[&format!("{:0.3}", degrees.neg())],
+    )?;
     rotator.validate_parse(&cmd_string)?;
     drop(rotator);
 
@@ -82,10 +86,14 @@ pub async fn calibrate_horizontal(serial: &StatePort) -> Result<Success, Error> 
 
 /// Moves in a direction indefinitely specified by the command, or stops, if the command is to stop.
 #[get("/movc?<direction>")]
-pub async fn move_direction(serial: &StatePort, direction: super::Direction) -> Result<Success, Error> {
+pub async fn move_direction(
+    serial: &StatePort,
+    direction: super::Direction,
+) -> Result<Success, Error> {
     let mut rotator = serial.lock().await;
 
-    let cmd_string = rotator.send_command(Command::CalibrateHorizontal, &[&direction.to_string()])?;
+    let cmd_string =
+        rotator.send_command(Command::CalibrateHorizontal, &[&direction.to_string()])?;
     rotator.validate_parse(&cmd_string)?;
     drop(rotator);
 
@@ -122,7 +130,8 @@ pub async fn position(serial: &StatePort) -> Result<Success, Error> {
     let mut rotator = serial.lock().await;
 
     let cmd_string = rotator.send_command(Command::GetPosition, &[])?;
-    let value_list = rotator.validate_parse(&cmd_string)?
+    let value_list = rotator
+        .validate_parse(&cmd_string)?
         .ok_or_else(|| io::Error::other("ExpectedValue"))?;
     drop(rotator);
 
@@ -131,8 +140,12 @@ pub async fn position(serial: &StatePort) -> Result<Success, Error> {
     }
 
     let (v, h) = (
-        value_list[0].parse::<f32>().map_err(|e: ParseFloatError| io::Error::other(e.to_string()))?,
-        value_list[1].parse::<f32>().map_err(|e: ParseFloatError| io::Error::other(e.to_string()))?
+        value_list[0]
+            .parse::<f32>()
+            .map_err(|e: ParseFloatError| io::Error::other(e.to_string()))?,
+        value_list[1]
+            .parse::<f32>()
+            .map_err(|e: ParseFloatError| io::Error::other(e.to_string()))?,
     );
 
     Ok(Success::data(json!({
@@ -149,11 +162,13 @@ pub async fn calibrated(serial: &StatePort) -> Result<Success, Error> {
 
     let cmd_string = rotator.send_command(Command::GetCalibrated, &[])?;
 
-    let value_list = rotator.validate_parse(&cmd_string)?
+    let value_list = rotator
+        .validate_parse(&cmd_string)?
         .ok_or_else(|| io::Error::other("ExpectedValue"))?;
     drop(rotator);
 
-    let calibrated = value_list[0].parse::<bool>()
+    let calibrated = value_list[0]
+        .parse::<bool>()
         .map_err(|e: ParseBoolError| io::Error::other(e.to_string()))?;
 
     Ok(Success::data(json!({
@@ -180,9 +195,12 @@ pub async fn version(serial: &StatePort) -> Result<Success, Error> {
 
     let cmd_string = rotator.send_command(Command::GetVersion, &[])?;
 
-    Ok(rotator.validate_parse(&cmd_string)?
+    Ok(rotator
+        .validate_parse(&cmd_string)?
         .ok_or_else(|| io::Error::other("ExpectedValue"))
-        .map(|v| Success::data(json!({
-            "version": v[0].clone()
-        })))?)
+        .map(|v| {
+            Success::data(json!({
+                "version": v[0].clone()
+            }))
+        })?)
 }

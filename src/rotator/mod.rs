@@ -3,12 +3,12 @@
 //! A connection to the rotator should be made using an automatic selection algorithm,
 //! or by using the web API to connect.
 
-pub mod endpoints;
 pub mod dummyport;
+pub mod endpoints;
 
-use std::io::{Error, Write as _};
 use core::fmt::Display;
 use rocket::FromFormField;
+use std::io::{Error, Write as _};
 
 use serialport::SerialPort;
 
@@ -80,7 +80,7 @@ impl TryFrom<&str> for Direction {
             "LT" => Self::Left,
             "RT" => Self::Right,
             "SH" => Self::StopHorizontal,
-            _ => return Err(())
+            _ => return Err(()),
         })
     }
 }
@@ -120,11 +120,8 @@ impl Rotator {
         port.set_baud_rate(Self::BAUD)?;
         port.set_timeout(std::time::Duration::from_millis(500))?;
 
-        Ok(Self {
-            port
-        })
+        Ok(Self { port })
     }
-
 
     /// Moves by the specified number of steps in the horizontal axis.
     pub fn move_horizontal_steps(&mut self, steps: i32) -> Result<(), Error> {
@@ -134,7 +131,11 @@ impl Rotator {
     }
 
     /// Send a command followed by arguments. Returns either an error if sending failed, or the
-    pub fn send_command(&mut self, command: Command, args: &[&str]) -> Result<String, std::io::Error> {
+    pub fn send_command(
+        &mut self,
+        command: Command,
+        args: &[&str],
+    ) -> Result<String, std::io::Error> {
         self.port.clear(serialport::ClearBuffer::All)?;
 
         let mut command_string = Vec::new();
@@ -172,9 +173,11 @@ impl Rotator {
 
         // Fill up the result string with what the rotator spits out
         let mut buffer = [0; 2048];
-        while let Ok(num_read) = self.port.read(&mut buffer) && num_read != 0 {
+        while let Ok(num_read) = self.port.read(&mut buffer)
+            && num_read != 0
+        {
             let Ok(read_buffer) = str::from_utf8(&buffer[..num_read]) else {
-                return Err(Error::other("invalid response"))
+                return Err(Error::other("invalid response"));
             };
 
             response_string.push_str(read_buffer);
@@ -184,8 +187,12 @@ impl Rotator {
         let response_lines: Vec<_> = response_string.split_terminator('\n').collect();
 
         // The first line should be an echo of what was sent
-        if *response_lines.first().ok_or_else(|| Error::other("response empty"))? != command_string.trim() {
-            return Err(Error::other("invalid response"))
+        if *response_lines
+            .first()
+            .ok_or_else(|| Error::other("response empty"))?
+            != command_string.trim()
+        {
+            return Err(Error::other("invalid response"));
         }
 
         // Split the second line into a status followed by the return values
@@ -193,7 +200,7 @@ impl Rotator {
         match response_list[0] {
             "ERR" => return Err(Error::other(response_list[1].to_string())),
             "OK" => (),
-            _ => return Err(Error::other("invalid response"))
+            _ => return Err(Error::other("invalid response")),
         }
 
         // Split the return values further
