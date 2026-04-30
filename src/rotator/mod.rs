@@ -123,6 +123,10 @@ impl Rotator {
         Ok(Self { port })
     }
 
+    pub fn port(&self) -> &Box<dyn SerialPort> {
+        &self.port
+    }
+
     /// Moves by the specified number of steps in the horizontal axis.
     pub fn move_horizontal_steps(&mut self, steps: i32) -> Result<(), Error> {
         let cmd_string = self.send_command(Command::MoveHorizontalSteps, &[&steps.to_string()])?;

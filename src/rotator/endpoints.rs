@@ -1,6 +1,6 @@
 //! Rocket endpoints for managing the rotator remotely.
 
-use std::{io, num::ParseFloatError, ops::Neg as _, str::ParseBoolError};
+use std::{io, num::ParseFloatError, ops::Neg as _, str::ParseBoolError, sync::Arc};
 
 use rocket::{Route, State, get, routes, tokio::sync::Mutex};
 use serde_json::json;
@@ -25,15 +25,14 @@ pub fn endpoints() -> Vec<Route> {
     ]
 }
 
-type StatePort = State<Mutex<Rotator>>;
+type StatePort = State<Arc<Mutex<Rotator>>>;
 
 /// Set a defined position for the rotator to move tow
 #[get("/dver?<degrees>")]
 pub async fn set_position_vertical(serial: &StatePort, degrees: f32) -> Result<Success, Error> {
     let mut rotator = serial.lock().await;
 
-    let cmd_string =
-        rotator.send_command(Command::DegreesVertical, &[&format!("{degrees:0.3}")])?;
+    let cmd_string = rotator.send_command(Command::DegreesVertical, &[&format!("{degrees:0.3}")])?;
     rotator.validate_parse(&cmd_string)?;
     drop(rotator);
 
