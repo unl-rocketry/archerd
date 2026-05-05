@@ -13,6 +13,7 @@ serialport = { version = "4.8.1", features = ["serde"] }
 log = "0.4.29"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
+colog = "1.4.0"
 
 [build-dependencies]
 cargo_metadata = "0.23.1"

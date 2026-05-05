@@ -1,15 +1,16 @@
-use std::{io, sync::Arc, time::Duration};
+use std::{io, sync::Arc};
 
 use rocket::{State, get, routes, tokio::{self, sync::Mutex}};
 use serde_json::json;
+use serialport::SerialPort;
 
 use crate::{
-    response::{Error, Success},
-    rotator::{Rotator, dummyport::DummyPort},
+    control_loop::rotator_control_loop, response::{Error, Success}, rotator::{Rotator, dummyport::DummyPort}
 };
 
-pub mod response;
-pub mod rotator;
+mod response;
+mod rotator;
+mod control_loop;
 
 #[rocket::main]
 async fn main() {
@@ -22,6 +23,9 @@ async fn main() {
         .unwrap_or(Box::new(DummyPort::default()));
     let rotator = Arc::new(Mutex::new(Rotator::new(serial).unwrap()));
 
+    let loop_rotator = Arc::clone(&rotator);
+    tokio::spawn(rotator_control_loop(loop_rotator));
+
     let rocket = rocket::build()
         .manage(rotator)
         .mount("/", routes![index, get_serialports, get_rotator_port, set_rotator_port,])
@@ -31,14 +35,6 @@ async fn main() {
         .await;
 
     rocket.expect("Server failed to shutdown gracefully");
-}
-
-async fn rotator_control_loop(rotator: Arc<Mutex<Rotator>>) {
-    rotator.lock().await;
-
-    loop {
-        tokio::time::sleep(Duration::from_millis(50)).await;
-    }
 }
 
 #[get("/")]
@@ -85,3 +81,23 @@ async fn set_rotator_port(
 
     Ok(Success::empty())
 }
+
+async fn autofind_rotator_port() -> Result<Box<dyn SerialPort>, Error> {
+    let Some(port_info) = serialport::available_ports()
+        .map_err(|e| io::Error::other(e.to_string()))?
+        .iter()
+        .filter_map(|p| match &p.port_type {
+            serialport::SerialPortType::UsbPort(usb_port_info) => Some(usb_port_info),
+            _ => None
+        })
+        .find(|p| p.vid == 0x00 && p.pid == 0x00)
+    else {
+        return Err(Error("no ports matching the rotator were found".to_string()))
+    };
+
+
+
+    Ok(todo!())
+}
+
+
