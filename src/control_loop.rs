@@ -1,5 +1,6 @@
 use std::{sync::Arc, time::Duration};
 
+use aerospace_rocketry_lib::geospatial::Point;
 use log::info;
 use rocket::tokio::{self, join, sync::Mutex, time::Instant};
 use serde_json::Value;
@@ -7,35 +8,46 @@ use serialport::SerialPort;
 
 use crate::rotator::Rotator;
 
-struct ControlInfo {
-    rocket_position: Arc<Mutex<RocketPosition>>,
-    rotator_position: RotatorPosition,
+pub struct ControlInfo {
+    pub rocket_position: Arc<Mutex<RocketPosition>>,
+    pub rotator_position: Arc<Mutex<RotatorPosition>>,
 }
 
 pub struct RocketPosition {
-    pub latitude: f32,
-    pub longitude: f32,
-    pub altitude: f32,
+    pub latitude: f64,
+    pub longitude: f64,
+    pub altitude: f64,
 }
 
-struct RotatorPosition {
-    altitude: f32,
-    azimuth: f32,
+pub struct RotatorPosition {
+    pub latitude: f64,
+    pub longitude: f64,
+    pub altitude: f64
 }
 
-pub async fn rotator_control_loop(rotator: Arc<Mutex<Rotator>>) {
+pub async fn rotator_control_loop(rotator: Arc<Mutex<Rotator>>, control_info: ControlInfo) {
     info!("Started control loop");
 
     let mut ticker = tokio::time::interval(Duration::from_millis(200));
     ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
 
     loop {
-        let Ok((v, h)) = rotator.lock().await.position().await else {
-            ticker.tick().await;
-            continue;
-        };
+        let ground = Point::new_3d(
+            control_info.rotator_position.lock().await.latitude,
+            control_info.rotator_position.lock().await.longitude,
+            control_info.rotator_position.lock().await.altitude
+        ).unwrap();
+        let rocket = Point::new_3d(
+            control_info.rocket_position.lock().await.latitude,
+            control_info.rocket_position.lock().await.longitude,
+            control_info.rocket_position.lock().await.altitude
+        ).unwrap();
 
-        println!("Az: {h}, Alt: {v}");
+        let bearing = ground.bearing_to(rocket, false);
+        let elevation = ground.elevation_to(rocket).unwrap();
+
+        rotator.lock().await.set_position_vertical(elevation as f32).await.unwrap();
+        rotator.lock().await.set_position_horizontal(bearing.degrees() as f32).await.unwrap();
 
         ticker.tick().await;
     }
@@ -67,9 +79,9 @@ pub async fn rfd_receive_loop(mut rfd: Box<dyn SerialPort>, rocket_position: Arc
 
         let packet: Value = serde_json::from_str(data).unwrap();
         let new_position = RocketPosition {
-            altitude: packet["p_alt"].as_f64().unwrap() as f32,
-            latitude: packet["gps"]["latitude"].as_f64().unwrap() as f32,
-            longitude: packet["gps"]["longitude"].as_f64().unwrap() as f32,
+            altitude: packet["p_alt"].as_f64().unwrap(),
+            latitude: packet["gps"]["latitude"].as_f64().unwrap(),
+            longitude: packet["gps"]["longitude"].as_f64().unwrap(),
         };
 
         *rocket_position.lock().await = new_position;

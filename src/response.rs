@@ -14,7 +14,7 @@ pub struct InnerResponse {
 #[response(status = 200, content_type = "json")]
 pub struct Success(pub String);
 
-#[derive(Responder)]
+#[derive(Responder, Debug)]
 #[response(status = 500, content_type = "json")]
 pub struct Error(pub String);
 

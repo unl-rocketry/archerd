@@ -5,7 +5,7 @@ use serde_json::json;
 use serialport::SerialPort;
 
 use crate::{
-    control_loop::{rfd_receive_loop, rotator_control_loop}, response::{Error, Success}, rotator::{Rotator, dummyport::DummyPort}
+    control_loop::{ControlInfo, rfd_receive_loop, rotator_control_loop}, response::{Error, Success}, rotator::{Rotator, dummyport::DummyPort}
 };
 
 mod response;
@@ -24,23 +24,39 @@ async fn main() {
         .unwrap_or(Box::new(DummyPort::default()));
     let rotator = Arc::new(Mutex::new(Rotator::new(rotator_serial).unwrap()));
 
-    let loop_rotator = Arc::clone(&rotator);
-    tokio::spawn(rotator_control_loop(loop_rotator));
-
-    let rfd = autofind_serial_port(0x0403, 0x6001, 57_600)
-        .await
-        .unwrap();
-    let loop_rocket_position = Arc::new(Mutex::new(control_loop::RocketPosition {
+    let rotator_position = Arc::new(Mutex::new(control_loop::RotatorPosition {
         latitude: 0.0,
         longitude: 0.0,
         altitude: 0.0
     }));
-    let rocket_position = Arc::clone(&loop_rocket_position);
+    let rocket_position = Arc::new(Mutex::new(control_loop::RocketPosition {
+        latitude: 0.0,
+        longitude: 0.0,
+        altitude: 0.0
+    }));
 
-    tokio::spawn(rfd_receive_loop(rfd, rocket_position));
+    // Spawn RFD receiving loop
+    {
+        let rfd = autofind_serial_port(0x0403, 0x6001, 57_600)
+        .await
+        .unwrap();
+
+        let loop_rocket_position = Arc::clone(&rocket_position);
+
+        tokio::spawn(rfd_receive_loop(rfd, loop_rocket_position));
+    }
+
+    // Spawn Rotator control loop
+    {
+        let control_info = ControlInfo { rocket_position, rotator_position: Arc::clone(&rotator_position) };
+        let loop_rotator = Arc::clone(&rotator);
+
+        tokio::spawn(rotator_control_loop(loop_rotator, control_info));
+    }
 
     let rocket = rocket::build()
         .manage(rotator)
+        .manage(rotator_position)
         .mount("/", routes![index, get_serialports, get_rotator_port, set_rotator_port,])
         .mount("/rotator", rotator::endpoints::endpoints())
         .configure(rocket_config)
