@@ -83,22 +83,17 @@ async fn set_rotator_port(
     Ok(Success::empty())
 }
 
-async fn autofind_rotator_port() -> Result<Box<dyn SerialPort>, Error> {
-    let Some(port_info) = serialport::available_ports()
-        .map_err(|e| io::Error::other(e.to_string()))?
-        .iter()
-        .filter_map(|p| match &p.port_type {
-            serialport::SerialPortType::UsbPort(usb_port_info) => Some(usb_port_info),
-            _ => None
-        })
-        .find(|p| p.vid == 0x00 && p.pid == 0x00)
-    else {
-        return Err(Error("no ports matching the rotator were found".to_string()))
-    };
+async fn autofind_serial_port(vid: u16, pid: u16, baud: u32) -> Result<Box<dyn SerialPort>, Box<dyn std::error::Error>> {
+    for port in serialport::available_ports()? {
+        if let serialport::SerialPortType::UsbPort(u) = port.port_type && (u.vid == vid && u.pid == pid) {
+            let port = serialport::new(port.port_name, baud)
+                .open()?;
 
+            return Ok(port);
+        }
+    }
 
-
-    Ok(todo!())
+    Err("Failed to find device".into())
 }
 
 
