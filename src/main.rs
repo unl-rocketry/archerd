@@ -5,7 +5,7 @@ use serde_json::json;
 use serialport::SerialPort;
 
 use crate::{
-    control_loop::rotator_control_loop, response::{Error, Success}, rotator::{Rotator, dummyport::DummyPort}
+    control_loop::{rfd_receive_loop, rotator_control_loop}, response::{Error, Success}, rotator::{Rotator, dummyport::DummyPort}
 };
 
 mod response;
@@ -19,13 +19,25 @@ async fn main() {
         ..Default::default()
     };
 
-    let serial = serialport::new("/dev/ttyUSB0", 115_200)
-        .open()
+    let rotator_serial = autofind_serial_port(0x10C4, 0xEA60, 115_200)
+        .await
         .unwrap_or(Box::new(DummyPort::default()));
-    let rotator = Arc::new(Mutex::new(Rotator::new(serial).unwrap()));
+    let rotator = Arc::new(Mutex::new(Rotator::new(rotator_serial).unwrap()));
 
     let loop_rotator = Arc::clone(&rotator);
     tokio::spawn(rotator_control_loop(loop_rotator));
+
+    let rfd = autofind_serial_port(0x0403, 0x6001, 57_600)
+        .await
+        .unwrap();
+    let loop_rocket_position = Arc::new(Mutex::new(control_loop::RocketPosition {
+        latitude: 0.0,
+        longitude: 0.0,
+        altitude: 0.0
+    }));
+    let rocket_position = Arc::clone(&loop_rocket_position);
+
+    tokio::spawn(rfd_receive_loop(rfd, rocket_position));
 
     let rocket = rocket::build()
         .manage(rotator)
