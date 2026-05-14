@@ -120,7 +120,7 @@ impl Rotator {
     /// [`Self::BAUD`] then this function will error.
     pub fn new(mut port: Box<dyn SerialPort>) -> Result<Self, io::Error> {
         port.set_baud_rate(Self::BAUD)?;
-        port.set_timeout(std::time::Duration::from_millis(500))?;
+        port.set_timeout(std::time::Duration::from_millis(25))?;
 
         Ok(Self { port })
     }
@@ -160,6 +160,7 @@ impl Rotator {
 
     /// Send a raw message.
     fn _send_message(&mut self, message: &str) -> Result<(), std::io::Error> {
+        dbg!(message);
         self.port.write_all(message.as_bytes())?;
         self.port.write_all(b"\n")?;
 
@@ -185,6 +186,8 @@ impl Rotator {
         // Split the response into "lines" by the newline characters
         let response_lines: Vec<_> = response_string.split_terminator('\n').collect();
 
+        dbg!(&response_lines);
+
         // The first line should be an echo of what was sent
         if *response_lines
             .first()
@@ -195,6 +198,10 @@ impl Rotator {
         }
 
         // Split the second line into a status followed by the return values
+        if response_lines.len() < 2 {
+            return Err(io::Error::other("response not two lines"))
+        }
+
         let response_list: Vec<&str> = response_lines[1].splitn(2, ' ').collect();
         match response_list[0] {
             "ERR" => return Err(io::Error::other(response_list[1].to_string())),

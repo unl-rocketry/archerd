@@ -15,6 +15,7 @@ mod control_loop;
 #[rocket::main]
 async fn main() {
     let rocket_config = rocket::Config {
+        address: [0, 0, 0, 0].into(),
         ..Default::default()
     };
 

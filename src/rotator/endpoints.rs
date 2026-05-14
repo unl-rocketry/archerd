@@ -48,7 +48,7 @@ pub async fn set_position_horizontal(serial: &StatePort, degrees: f32) -> Result
 #[get("/calv?<set>")]
 pub async fn calibrate_vertical(serial: &StatePort, set: bool) -> Result<Success, Error> {
     let mut rotator = serial.lock().await;
-    rotator.calibrate_vertical(set).await?;
+    let _ = rotator.calibrate_vertical(set).await;
 
     Ok(Success::empty())
 }

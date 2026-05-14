@@ -1,8 +1,7 @@
 use std::{sync::Arc, time::Duration};
 
-use log::{debug, info};
-use rocket::{futures::future::join, tokio::{self, join, sync::Mutex}};
-use serde_json::Value;
+use log::info;
+use rocket::tokio::{self, join, sync::Mutex, time::Instant};
 
 use crate::rotator::Rotator;
 
@@ -25,7 +24,7 @@ struct RotatorPosition {
 pub async fn rotator_control_loop(rotator: Arc<Mutex<Rotator>>) {
     info!("Started control loop");
 
-    let mut ticker = tokio::time::interval(Duration::from_millis(500));
+    let mut ticker = tokio::time::interval(Duration::from_millis(200));
     ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
 
     loop {
