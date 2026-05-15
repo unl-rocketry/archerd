@@ -6,7 +6,7 @@ use serde_json::json;
 use serialport::SerialPort;
 
 use crate::{
-    control_loop::{ControlInfo, rfd_receive_loop, rotator_control_loop}, response::{Error, Success}, rotator::Rotator
+    control_loop::{ControlInfo, rfd_receive_loop, rotator_control_loop}, response::{Error, Success}, rotator::{Rotator, dummyport::DummyPort}
 };
 
 mod response;
@@ -22,10 +22,9 @@ async fn main() {
 
     let rotator_serial = autofind_serial_port(0x10C4, 0xEA60, 115_200)
         .await
-        .ok()
-        .map(|s| Rotator::new(s).unwrap());
+        .unwrap_or_else(|_| Box::new(DummyPort::default()));
 
-    let rotator = Arc::new(Mutex::new(rotator_serial));
+    let rotator = Arc::new(Mutex::new(Rotator::new(rotator_serial).unwrap()));
 
     // TODO: make these fields into options!!!!!!!!!!!!!!!!!!!
     let rotator_position = Arc::new(Mutex::new(None));

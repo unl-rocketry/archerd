@@ -13,7 +13,7 @@ pub struct ControlInfo {
     pub rotator_position: Arc<Mutex<Option<Point>>>,
 }
 
-pub async fn rotator_control_loop(rotator: Arc<Mutex<Option<Rotator>>>, control_info: ControlInfo) {
+pub async fn rotator_control_loop(rotator: Arc<Mutex<Rotator>>, control_info: ControlInfo) {
     info!("Started control loop");
 
     let mut ticker = tokio::time::interval(Duration::from_millis(200));
@@ -37,10 +37,8 @@ pub async fn rotator_control_loop(rotator: Arc<Mutex<Option<Rotator>>>, control_
         let bearing = ground.bearing_to(rocket, false);
         let elevation = ground.elevation_to(rocket).unwrap();
 
-        if let Some(rotator) = rotator.lock().await.as_mut() {
-            rotator.set_position_vertical(elevation as f32).await.unwrap();
-            rotator.set_position_horizontal(bearing.degrees() as f32).await.unwrap();
-        }
+        rotator.lock().await.set_position_vertical(elevation as f32).await.unwrap();
+        rotator.lock().await.set_position_horizontal(bearing.degrees() as f32).await.unwrap();
     }
 }
 
