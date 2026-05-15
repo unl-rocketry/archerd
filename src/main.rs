@@ -1,11 +1,12 @@
 use std::{io, sync::Arc};
 
+use aerospace_rocketry_lib::geospatial::Point;
 use rocket::{State, get, routes, tokio::{self, sync::Mutex}};
 use serde_json::json;
 use serialport::SerialPort;
 
 use crate::{
-    control_loop::{ControlInfo, RotatorPosition, rfd_receive_loop, rotator_control_loop}, response::{Error, Success}, rotator::{Rotator, dummyport::DummyPort}
+    control_loop::{ControlInfo, rfd_receive_loop, rotator_control_loop}, response::{Error, Success}, rotator::Rotator
 };
 
 mod response;
@@ -21,26 +22,18 @@ async fn main() {
 
     let rotator_serial = autofind_serial_port(0x10C4, 0xEA60, 115_200)
         .await
-        .unwrap_or(Box::new(DummyPort::default()));
-    let rotator = Arc::new(Mutex::new(Rotator::new(rotator_serial).unwrap()));
+        .ok()
+        .map(|s| Rotator::new(s).unwrap());
+
+    let rotator = Arc::new(Mutex::new(rotator_serial));
 
     // TODO: make these fields into options!!!!!!!!!!!!!!!!!!!
-    let rotator_position = Arc::new(Mutex::new(control_loop::RotatorPosition {
-        latitude: 0.0,
-        longitude: 0.0,
-        altitude: 0.0
-    }));
-    let rocket_position = Arc::new(Mutex::new(control_loop::RocketPosition {
-        latitude: 0.0,
-        longitude: 0.0,
-        altitude: 0.0
-    }));
+    let rotator_position = Arc::new(Mutex::new(None));
+    let rocket_position = Arc::new(Mutex::new(None));
 
     // Spawn RFD receiving loop
     {
-        let rfd = autofind_serial_port(0x0403, 0x6001, 57_600)
-        .await
-        .unwrap();
+        let rfd = autofind_serial_port(0x0403, 0x6001, 57_600).await.ok();
 
         let loop_rocket_position = Arc::clone(&rocket_position);
 
@@ -127,13 +120,15 @@ async fn autofind_serial_port(vid: u16, pid: u16, baud: u32) -> Result<Box<dyn S
 
 #[get("/set_rotator_position?<lon>&<lat>&<alt>")]
 async fn set_rotator_position(
-    rotator_position: &State<Arc<Mutex<RotatorPosition>>>,
+    rotator_position: &State<Arc<Mutex<Point>>>,
     lon: f64,
     lat: f64,
     alt: f64,
 ) {
-    rotator_position.lock().await.longitude = lon;
-    rotator_position.lock().await.latitude = lat;
-    rotator_position.lock().await.altitude = alt;
+    *rotator_position.lock().await = Point::new_3d(
+        lat,
+        lon,
+        alt,
+    ).unwrap();
 }
 

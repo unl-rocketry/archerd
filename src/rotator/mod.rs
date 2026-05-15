@@ -17,6 +17,7 @@ use crate::response::Error;
 /// Command that the rotator accepts.
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy)]
+#[allow(dead_code)]
 pub enum Command {
     DegreesVertical,
     DegreesHorizontal,
