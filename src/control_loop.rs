@@ -1,7 +1,7 @@
 use std::{sync::Arc, time::Duration};
 
-use aerospace_rocketry_lib::geospatial::Point;
-use log::info;
+use aerospace_rocketry_lib::{geospatial::Point, utils::crc8};
+use log::{debug, info, warn};
 use rocket::tokio::{self, join, sync::Mutex, time::Instant};
 use serde_json::Value;
 use serialport::SerialPort;
@@ -74,6 +74,13 @@ pub async fn rfd_receive_loop(mut rfd: Box<dyn SerialPort>, rocket_position: Arc
             continue
         };
         let Some((crc, data)) = packet_string.split_once(' ') else {
+            continue
+        };
+
+        if let Ok(parsed_crc) = crc.parse::<u8>() && crc8(data.as_bytes()) == parsed_crc {
+            debug!("CRC is valid.");
+        } else {
+            warn!("CRC is invalid!");
             continue
         };
 

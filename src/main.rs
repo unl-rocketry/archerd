@@ -5,7 +5,7 @@ use serde_json::json;
 use serialport::SerialPort;
 
 use crate::{
-    control_loop::{ControlInfo, rfd_receive_loop, rotator_control_loop}, response::{Error, Success}, rotator::{Rotator, dummyport::DummyPort}
+    control_loop::{ControlInfo, RotatorPosition, rfd_receive_loop, rotator_control_loop}, response::{Error, Success}, rotator::{Rotator, dummyport::DummyPort}
 };
 
 mod response;
@@ -24,6 +24,7 @@ async fn main() {
         .unwrap_or(Box::new(DummyPort::default()));
     let rotator = Arc::new(Mutex::new(Rotator::new(rotator_serial).unwrap()));
 
+    // TODO: make these fields into options!!!!!!!!!!!!!!!!!!!
     let rotator_position = Arc::new(Mutex::new(control_loop::RotatorPosition {
         latitude: 0.0,
         longitude: 0.0,
@@ -57,7 +58,7 @@ async fn main() {
     let rocket = rocket::build()
         .manage(rotator)
         .manage(rotator_position)
-        .mount("/", routes![index, get_serialports, get_rotator_port, set_rotator_port,])
+        .mount("/", routes![index, get_serialports, get_rotator_port, set_rotator_port, set_rotator_position])
         .mount("/rotator", rotator::endpoints::endpoints())
         .configure(rocket_config)
         .launch()
@@ -124,4 +125,15 @@ async fn autofind_serial_port(vid: u16, pid: u16, baud: u32) -> Result<Box<dyn S
     Err("Failed to find device".into())
 }
 
+#[get("/set_rotator_position?<lon>&<lat>&<alt>")]
+async fn set_rotator_position(
+    rotator_position: &State<Arc<Mutex<RotatorPosition>>>,
+    lon: f64,
+    lat: f64,
+    alt: f64,
+) {
+    rotator_position.lock().await.longitude = lon;
+    rotator_position.lock().await.latitude = lat;
+    rotator_position.lock().await.altitude = alt;
+}
 
