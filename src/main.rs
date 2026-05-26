@@ -15,6 +15,8 @@ mod control_loop;
 
 #[rocket::main]
 async fn main() {
+    env_logger::init();
+
     let rocket_config = rocket::Config {
         address: [0, 0, 0, 0].into(),
         ..Default::default()
@@ -23,6 +25,8 @@ async fn main() {
     let rotator_serial = autofind_serial_port(0x10C4, 0xEA60, 115_200)
         .await
         .unwrap_or_else(|_| Box::new(DummyPort::default()));
+
+    dbg!(&rotator_serial);
 
     let rotator = Arc::new(Mutex::new(Rotator::new(rotator_serial).unwrap()));
 
@@ -33,7 +37,7 @@ async fn main() {
     // Spawn RFD receiving loop
     {
         let rfd = autofind_serial_port(0x0403, 0x6001, 57_600).await.ok();
-
+        dbg!(&rfd);
         let loop_rocket_position = Arc::clone(&rocket_position);
 
         tokio::spawn(rfd_receive_loop(rfd, loop_rocket_position));
@@ -119,15 +123,15 @@ async fn autofind_serial_port(vid: u16, pid: u16, baud: u32) -> Result<Box<dyn S
 
 #[get("/set_rotator_position?<lon>&<lat>&<alt>")]
 async fn set_rotator_position(
-    rotator_position: &State<Arc<Mutex<Point>>>,
+    rotator_position: &State<Arc<Mutex<Option<Point>>>>,
     lon: f64,
     lat: f64,
     alt: f64,
 ) {
-    *rotator_position.lock().await = Point::new_3d(
+    *rotator_position.lock().await = Some(Point::new_3d(
         lat,
         lon,
         alt,
-    ).unwrap();
+    ).unwrap());
 }
 
