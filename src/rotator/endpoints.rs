@@ -20,6 +20,7 @@ pub fn endpoints() -> Vec<Route> {
         position,
         calibrated,
         halt,
+        errors,
         version,
     ]
 }
@@ -123,6 +124,16 @@ pub async fn halt(serial: &StatePort) -> Result<Success, Error> {
     rotator.halt().await?;
 
     Ok(Success::empty())
+}
+
+///Gets the oldest unknown error from the rotator
+#[get("/errors")]
+pub async fn errors(serial: &StatePort) -> Result<Success, Error> {
+    let mut rotator = serial.lock().await;
+    let error = rotator.errors().await?;
+    Ok(Success::data(json!({
+        "error": error,
+    })))
 }
 
 /// Gets the current version of the software on the rotator.
