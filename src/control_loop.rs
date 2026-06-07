@@ -23,13 +23,13 @@ pub async fn rotator_control_loop(rotator: Arc<Mutex<Rotator>>, control_info: Co
         ticker.tick().await;
 
         let ground = if let Some(gp) = control_info.rotator_position.lock().await.as_ref() {
-            gp.clone()
+            *gp
         } else {
             continue;
         };
 
         let rocket = if let Some(rp) = control_info.rocket_position.lock().await.as_ref() {
-            rp.clone()
+            *rp
         } else {
             continue;
         };
@@ -67,7 +67,7 @@ pub async fn rfd_receive_loop(mut rfd: Option<Box<dyn SerialPort>>, rocket_posit
             leftover_copy.push_str(data);
 
             leftover_string.clear();
-            leftover_string.push_str(&leftover);
+            leftover_string.push_str(leftover);
             buf_pos = 0;
 
             leftover_copy
