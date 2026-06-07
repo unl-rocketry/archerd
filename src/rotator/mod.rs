@@ -9,7 +9,7 @@ pub mod endpoints;
 use core::fmt::Display;
 use rocket::FromFormField;
 use std::{io::{self, Write as _}, num::ParseFloatError, ops::Neg as _, str::ParseBoolError};
-
+use std::string::ParseError;
 use serialport::SerialPort;
 
 use crate::response::Error;
@@ -32,6 +32,7 @@ pub enum Command {
     GetPosition,
     GetCalibrated,
     GetVersion,
+    GetErrors,
 
     Halt,
 }
@@ -50,6 +51,7 @@ impl Display for Command {
             Self::GetPosition => "GETP",
             Self::GetCalibrated => "GETC",
             Self::GetVersion => "VERS",
+            Self::GetErrors => "GERR",
             Self::Halt => "HALT",
         };
 
@@ -342,5 +344,20 @@ impl Rotator {
         Ok(self
             .validate_parse(&cmd_string)?
             .ok_or_else(|| io::Error::other("ExpectedValue"))?[0].clone())
+    }
+
+    pub async fn errors(&mut self) -> Result<String, Error> {
+        let cmd_string = self.send_command(Command::GetErrors, &[])?;
+
+        let value_list = self
+            .validate_parse(&cmd_string)?
+            .ok_or_else(|| io::Error::other("ExpectedValue"))?;
+
+
+        let error = value_list[0]
+            .parse::<String>()
+            .map_err(|e: ParseError| io::Error::other(e.to_string()))?;
+
+        Ok(error)
     }
 }
