@@ -13,6 +13,9 @@ mod response;
 mod rotator;
 mod control_loop;
 
+const ROTATOR_SERIAL_USB: (u16, u16) = (0x10C4, 0xEA60);
+const RFD_SERIAL_USB: (u16, u16) = (0x0403, 0x6001);
+
 #[rocket::main]
 async fn main() {
     env_logger::init();
@@ -22,7 +25,7 @@ async fn main() {
         ..Default::default()
     };
 
-    let rotator_serial = autofind_serial_port(0x10C4, 0xEA60, 115_200)
+    let rotator_serial = autofind_serial_port(ROTATOR_SERIAL_USB.0, ROTATOR_SERIAL_USB.1, 115_200)
         .await
         .unwrap_or_else(|_| Box::new(DummyPort::default()));
 
@@ -36,7 +39,7 @@ async fn main() {
 
     // Spawn RFD receiving loop
     {
-        let rfd = autofind_serial_port(0x0403, 0x6001, 57_600).await.ok();
+        let rfd = autofind_serial_port(RFD_SERIAL_USB.0, RFD_SERIAL_USB.1, 57_600).await.ok();
         dbg!(&rfd);
         let loop_rocket_position = Arc::clone(&rocket_position);
 
@@ -54,7 +57,7 @@ async fn main() {
     let rocket = rocket::build()
         .manage(rotator)
         .manage(rotator_position)
-        .mount("/", routes![index, get_serialports, get_rotator_port, set_rotator_port, set_rotator_position])
+        .mount("/", routes![index, get_serialports, get_rotator_port, set_rotator_port, set_rotator_position, get_rotator_position])
         .mount("/rotator", rotator::endpoints::endpoints())
         .configure(rocket_config)
         .launch()
@@ -135,3 +138,17 @@ async fn set_rotator_position(
     ).unwrap());
 }
 
+#[get("/get_rotator_position")]
+async fn get_rotator_position(
+    rotator_position: &State<Arc<Mutex<Option<Point>>>>,
+) -> Result<serde_json::Value, Error> {
+    let Some(pos) = *rotator_position.lock().await else {
+        return Err(Error("Position not set".to_string()))
+    };
+
+    Ok(json!({
+        "latitude": pos.latitude(),
+        "longitude": pos.longitude(),
+        "altitude": pos.altitude(),
+    }))
+}
