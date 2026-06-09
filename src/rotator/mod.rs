@@ -206,6 +206,7 @@ impl Rotator {
         }
 
         let response_list: Vec<&str> = response_lines[1].splitn(2, ' ').collect();
+        dbg!(&response_list);
         match response_list[0] {
             "ERR" => return Err(io::Error::other(response_list[1].to_string())),
             "OK" => (),
@@ -354,9 +355,8 @@ impl Rotator {
             .ok_or_else(|| io::Error::other("ExpectedValue"))?;
 
 
-        let error = value_list[0]
-            .parse::<String>()
-            .map_err(|e: ParseError| io::Error::other(e.to_string()))?;
+        let error = value_list
+            .join(" ");
 
         Ok(error)
     }

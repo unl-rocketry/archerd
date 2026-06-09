@@ -1,6 +1,6 @@
 use std::{sync::Arc, time::Duration};
 
-use aerospace_rocketry_lib::{geospatial::Point, utils::crc8};
+use aerospace_rocketry_lib::{geospatial::Point, utils::crc::crc8};
 use log::{debug, info, warn};
 use rocket::tokio::{self, sync::Mutex};
 use serde_json::Value;
@@ -16,11 +16,13 @@ pub struct ControlInfo {
 pub async fn rotator_control_loop(rotator: Arc<Mutex<Rotator>>, control_info: ControlInfo) {
     info!("Started control loop");
 
-    let mut ticker = tokio::time::interval(Duration::from_millis(200));
+    let mut ticker = tokio::time::interval(Duration::from_millis(250));
     ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
 
     loop {
         ticker.tick().await;
+
+        //dbg!(control_info.rotator_position.lock().await, control_info.rocket_position.lock().await);
 
         let ground = if let Some(gp) = control_info.rotator_position.lock().await.as_ref() {
             *gp
@@ -37,8 +39,8 @@ pub async fn rotator_control_loop(rotator: Arc<Mutex<Rotator>>, control_info: Co
         let bearing = ground.bearing_to(rocket, false);
         let elevation = ground.elevation_to(rocket).unwrap();
 
-        rotator.lock().await.set_position_vertical(elevation as f32).await.unwrap();
-        rotator.lock().await.set_position_horizontal(bearing.degrees() as f32).await.unwrap();
+        let _ = rotator.lock().await.set_position_vertical(elevation as f32).await;
+        let _ = rotator.lock().await.set_position_horizontal(bearing.degrees() as f32).await;
     }
 }
 
@@ -75,12 +77,12 @@ pub async fn rfd_receive_loop(mut rfd: Option<Box<dyn SerialPort>>, rocket_posit
             continue;
         };
 
-        let Some((crc, data)) = new_packet_string.split_once(' ') else {
+        let Some((crc_val, data)) = new_packet_string.split_once(' ') else {
             continue
         };
         let data = data.trim();
 
-        if let Ok(parsed_crc) = crc.parse::<u8>() {
+        if let Ok(parsed_crc) = crc_val.parse::<u8>() {
             let new_crc = crc8(data.as_bytes());
             if new_crc == parsed_crc {
                 debug!("CRC is valid.");
@@ -90,15 +92,17 @@ pub async fn rfd_receive_loop(mut rfd: Option<Box<dyn SerialPort>>, rocket_posit
             }
         }
 
-        let packet: Value = serde_json::from_str(data).unwrap();
+        let Ok(packet) = serde_json::from_str::<Value>(data) else {
+            continue;
+        };
 
         info!("Got packet from air side:\n{packet}");
 
         let new_position = if let Some(gps) = packet.get("gps") && !gps.is_null() {
              Point::new_3d(
-                packet["p_alt"].as_f64().unwrap(),
                 gps["latitude"].as_f64().unwrap(),
                 gps["longitude"].as_f64().unwrap(),
+                packet["p_alt"].as_f64().unwrap(),
             ).unwrap()
         } else {
             continue;
