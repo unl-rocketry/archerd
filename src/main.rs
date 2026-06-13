@@ -1,6 +1,6 @@
 use std::{io, sync::Arc};
 
-use aerospace_rocketry_lib::geospatial::Point;
+use aerospace_rocketry_lib::{geospatial::Point, utils::crc::crc8};
 use rocket::{State, get, routes, tokio::{self, sync::Mutex}};
 use serde_json::json;
 use serialport::SerialPort;
@@ -86,7 +86,7 @@ async fn main() {
         .manage(rotator)
         .manage(rotator_position)
         .manage(rfd)
-        .mount("/", routes![index, get_serialports, get_rotator_port, set_rotator_port, set_rotator_position, get_rotator_position])
+        .mount("/", routes![index, get_serialports, get_rotator_port, set_rotator_port, set_rotator_position, get_rotator_position, send_rfd_command])
         .mount("/rotator", rotator::endpoints::endpoints())
         .configure(rocket_config)
         .launch()
@@ -182,6 +182,11 @@ async fn get_rotator_position(
     }))
 }
 
+/// Enable high power (turn on Taisync): 70
+/// Disable high power (turn off Taisync): 80
+/// Reboot: 100
+/// Restart streaming service: 101
+/// Get IP address: 102
 #[get("/rfd/send?<cmd>")]
 async fn send_rfd_command(
     rfd_state: &State<Arc<Mutex<Option<Box<dyn SerialPort>>>>>,
@@ -193,7 +198,8 @@ async fn send_rfd_command(
         return Err(Error("RFD not connected".into()));
     };
 
-    rfd.write_all(&[cmd])?;
+    let crc = crc8(&[cmd]);
+    rfd.write_all(&[cmd, crc, b' '])?;
 
     Ok(Success::empty())
 }
