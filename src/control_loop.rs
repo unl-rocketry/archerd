@@ -44,20 +44,25 @@ pub async fn rotator_control_loop(rotator: Arc<Mutex<Rotator>>, control_info: Co
     }
 }
 
-pub async fn rfd_receive_loop(mut rfd: Option<Box<dyn SerialPort>>, rocket_position: Arc<Mutex<Option<Point>>>) {
+pub async fn rfd_receive_loop(mut rfd: Arc<Mutex<Option<Box<dyn SerialPort>>>>, rocket_position: Arc<Mutex<Option<Point>>>) {
     info!("Started RFD-900x recieve loop");
 
     let mut leftover_string = String::new();
     let mut buf = [0u8; 4096];
     let mut buf_pos = 0;
     loop {
-        let Some(rfd) = rfd.as_mut() else {
+        let mut rfd_lock = rfd.lock().await;
+
+        let Some(rfd) = rfd_lock.as_mut() else {
+            drop(rfd_lock);
             continue;
         };
 
         let Ok(bytes_read) = rfd.read(&mut buf[buf_pos..]) else {
+            drop(rfd_lock);
             continue
         };
+        drop(rfd_lock);
         buf_pos += bytes_read;
 
         let Ok(packet_string) = String::from_utf8(buf[..buf_pos].to_vec()) else {

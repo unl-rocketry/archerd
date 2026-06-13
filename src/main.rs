@@ -4,6 +4,9 @@ use aerospace_rocketry_lib::geospatial::Point;
 use rocket::{State, get, routes, tokio::{self, sync::Mutex}};
 use serde_json::json;
 use serialport::SerialPort;
+use num_traits::FromPrimitive;
+
+use num_derive::{FromPrimitive, ToPrimitive};
 
 use crate::{
     control_loop::{ControlInfo, rfd_receive_loop, rotator_control_loop}, response::{Error, Success}, rotator::{Rotator, dummyport::DummyPort}
@@ -15,6 +18,24 @@ mod control_loop;
 
 const ROTATOR_SERIAL_USB: (u16, u16) = (0x10C4, 0xEA60);
 const RFD_SERIAL_USB: (u16, u16) = (0x0403, 0x6001);
+
+
+#[derive(FromPrimitive, ToPrimitive)]
+#[repr(u8)]
+#[non_exhaustive]
+pub enum Commands {
+    /// Enable the Taisync radio
+    EnableHighPower = 70,
+    /// Disable the Taisync radio
+    DisableHighPower = 80,
+
+    /// Forcibly reboot without waiting for any processes to finish
+    Reboot = 100,
+    /// Restart the stream process
+    RestartStream = 101,
+    /// Get the IP address
+    GetIpAddress = 102,
+}
 
 #[rocket::main]
 async fn main() {
@@ -33,17 +54,24 @@ async fn main() {
 
     let rotator = Arc::new(Mutex::new(Rotator::new(rotator_serial).unwrap()));
 
-    // TODO: make these fields into options!!!!!!!!!!!!!!!!!!!
+    let version = rotator.lock().await.version().await.unwrap_or_else(|_| "0.0.0".to_string());
+    let protocol_version = env!("PROTOCOL_VERSION");
+    if !(protocol_version == version) {
+        println!("Protocol Version Mismatch please use a version of this program compatible with protocol Version {version}");
+    }
+
     let rotator_position = Arc::new(Mutex::new(None));
     let rocket_position = Arc::new(Mutex::new(None));
 
+    let rfd = Arc::new(Mutex::new(autofind_serial_port(RFD_SERIAL_USB.0, RFD_SERIAL_USB.1, 57_600).await.ok()));
+    dbg!(&rfd);
+
     // Spawn RFD receiving loop
     {
-        let rfd = autofind_serial_port(RFD_SERIAL_USB.0, RFD_SERIAL_USB.1, 57_600).await.ok();
-        dbg!(&rfd);
         let loop_rocket_position = Arc::clone(&rocket_position);
+        let loop_rfd = Arc::clone(&rfd);
 
-        tokio::spawn(rfd_receive_loop(rfd, loop_rocket_position));
+        tokio::spawn(rfd_receive_loop(loop_rfd, loop_rocket_position));
     }
 
     // Spawn Rotator control loop
@@ -57,6 +85,7 @@ async fn main() {
     let rocket = rocket::build()
         .manage(rotator)
         .manage(rotator_position)
+        .manage(rfd)
         .mount("/", routes![index, get_serialports, get_rotator_port, set_rotator_port, set_rotator_position, get_rotator_position])
         .mount("/rotator", rotator::endpoints::endpoints())
         .configure(rocket_config)
@@ -151,4 +180,20 @@ async fn get_rotator_position(
         "longitude": pos.longitude(),
         "altitude": pos.altitude(),
     }))
+}
+
+#[get("/rfd/send?<cmd>")]
+async fn send_rfd_command(
+    rfd_state: &State<Arc<Mutex<Option<Box<dyn SerialPort>>>>>,
+    cmd: u8,
+) -> Result<Success, Error> {
+    let mut rfd_lock = rfd_state.lock().await;
+
+    let Some(rfd) = rfd_lock.as_mut() else {
+        return Err(Error("RFD not connected".into()));
+    };
+
+    rfd.write_all(&[cmd])?;
+
+    Ok(Success::empty())
 }
