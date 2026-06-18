@@ -2,7 +2,7 @@ use std::{io, sync::Arc};
 
 use aerospace_rocketry_lib::{geospatial::Point, utils::crc::crc8};
 use rocket::{State, get, routes, tokio::{self, sync::Mutex}};
-use serde_json::json;
+use serde_json::{json, Value};
 use serialport::SerialPort;
 use num_traits::FromPrimitive;
 
@@ -89,7 +89,8 @@ async fn main() {
         .manage(rotator)
         .manage(rotator_position)
         .manage(rfd)
-        .mount("/", routes![index, get_serialports, get_rotator_port, set_rotator_port, set_rotator_position, get_rotator_position, send_rfd_command])
+        .manage(last_packet)
+        .mount("/", routes![index, get_serialports, get_rotator_port, set_rotator_port, set_rotator_position, get_rotator_position, send_rfd_command, get_last_packet])
         .mount("/rotator", rotator::endpoints::endpoints())
         .configure(rocket_config)
         .launch()
@@ -205,4 +206,9 @@ async fn send_rfd_command(
     rfd.write_all(&[cmd, crc, b' '])?;
 
     Ok(Success::empty())
+}
+
+#[get("/rfd/last_packet")]
+async fn get_last_packet(last_packet: &State<Arc<Mutex<Option<Value>>>>) -> Result<serde_json::Value, Error> {
+    last_packet.lock().await.clone().ok_or(Error("Could not find last packet".into()))
 }
