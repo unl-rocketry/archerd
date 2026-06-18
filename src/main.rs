@@ -63,6 +63,9 @@ async fn main() {
     let rotator_position = Arc::new(Mutex::new(None));
     let rocket_position = Arc::new(Mutex::new(None));
 
+    let last_packet = Arc::new(Mutex::new(None));
+    let loop_last_packet = Arc::clone(&last_packet);
+
     let rfd = Arc::new(Mutex::new(autofind_serial_port(RFD_SERIAL_USB.0, RFD_SERIAL_USB.1, 57_600).await.ok()));
     dbg!(&rfd);
 
@@ -71,7 +74,7 @@ async fn main() {
         let loop_rocket_position = Arc::clone(&rocket_position);
         let loop_rfd = Arc::clone(&rfd);
 
-        tokio::spawn(rfd_receive_loop(loop_rfd, loop_rocket_position));
+        tokio::spawn(rfd_receive_loop(loop_rfd, loop_rocket_position, loop_last_packet));
     }
 
     // Spawn Rotator control loop

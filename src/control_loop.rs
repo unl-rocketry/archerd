@@ -44,7 +44,11 @@ pub async fn rotator_control_loop(rotator: Arc<Mutex<Rotator>>, control_info: Co
     }
 }
 
-pub async fn rfd_receive_loop(mut rfd: Arc<Mutex<Option<Box<dyn SerialPort>>>>, rocket_position: Arc<Mutex<Option<Point>>>) {
+pub async fn rfd_receive_loop(
+    mut rfd: Arc<Mutex<Option<Box<dyn SerialPort>>>>,
+    rocket_position: Arc<Mutex<Option<Point>>>,
+    last_packet: Arc<Mutex<Option<Value>>>
+) {
     info!("Started RFD-900x recieve loop");
 
     let mut leftover_string = String::new();
@@ -115,5 +119,8 @@ pub async fn rfd_receive_loop(mut rfd: Arc<Mutex<Option<Box<dyn SerialPort>>>>, 
 
         // Set the position of the rocket to the new position
         *rocket_position.lock().await = Some(new_position);
+
+        // Set the last packet to the current packet
+        *last_packet.lock().await = Some(packet);
     }
 }
