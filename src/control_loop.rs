@@ -1,8 +1,10 @@
 use std::{sync::Arc, time::Duration};
 
 use aerospace_rocketry_lib::{geospatial::Point, utils::crc::crc8};
+use chrono::Utc;
 use log::{debug, info, warn};
 use rocket::tokio::{self, sync::Mutex};
+use rocket::tokio::io::AsyncWriteExt;
 use serde_json::Value;
 use serialport::SerialPort;
 
@@ -51,6 +53,14 @@ pub async fn rfd_receive_loop(
 ) {
     info!("Started RFD-900x recieve loop");
 
+    let timestamp = Utc::now().to_rfc3339();
+
+    let mut telemetry_file = tokio::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(format!("telemetry_{}.json", timestamp))
+        .await.ok();
+
     let mut leftover_string = String::new();
     let mut buf = [0u8; 4096];
     let mut buf_pos = 0;
@@ -85,6 +95,12 @@ pub async fn rfd_receive_loop(
         } else {
             continue;
         };
+
+        if let Some(t_file) = telemetry_file.as_mut() {
+            let _ = t_file.write_all(new_packet_string.as_bytes()).await;
+            let _ = t_file.write_all(b"\n").await;
+            let _ = t_file.flush().await;
+        }
 
         let Some((crc_val, data)) = new_packet_string.split_once(' ') else {
             continue
